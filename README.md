@@ -6,4 +6,4 @@
 2) get_latencies.py: 
 
 
-3) plot_cdfs
+3) plot_cdfs: 
