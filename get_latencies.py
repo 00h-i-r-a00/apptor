@@ -19,14 +19,15 @@ CONNECTION_TIMEOUT = 30  # timeout before we give up on a circuit
 
 #####Get Urls########
 
-data = sys.stdin.read()
-url_list = data.split()
+#data = sys.stdin.read()
+#url_list = data.split()
 
 
 ####################
 
-#####Get Top 100 relays with most bandwidth#########################
+#####Map a Router's IP to its location#########################
 def get_location(ip):
+	"""Maps an IP to an approximate geographical region"""
 
   rawdata = pygeoip.GeoIP('/home/hira/GeoLiteCity.dat')
   data = rawdata.record_by_name(ip)
@@ -34,7 +35,9 @@ def get_location(ip):
   return country
 
 def get_top_relays(country):
-
+  """
+  Gets the top (the top criteria being the router's bandwidth) relays in a Country
+  """
   downloader = DescriptorDownloader(
     use_mirrors = True,
     timeout = 10,
@@ -53,7 +56,8 @@ def get_top_relays(country):
   i=0
 
   sorted_relays = []
-
+ ###sort relays in descending order###
+ 
   for key, value in sorted(router_bandwidth.items(), key = lambda fun: fun[1][2], reverse = True):
     sorted_relays.insert(i, [value[0], value[1], value[2], value[3]]) 
     i = i+1
@@ -73,7 +77,7 @@ def get_top_relays(country):
 
 def query(url):
   """
-  Uses pycurl to fetch a site using the proxy on the SOCKS_PORT.
+  Uses pycurl to fetch a site using the proxy on the SOCKS_PORT. Returns the http code corresponding to an HTTP Request
   """
 
   output = StringIO.StringIO()
@@ -96,8 +100,8 @@ def query(url):
 
 def scan(controller, path, url, location):
   """
-  Fetch check.torproject.org through the given path of relays, providing back
-  the time it took.
+  Create a circuit as specified by the "path"
+  Using the circuit created, fetch a url and get its delay i.e the delay between the HTTP Request and the HTTP Response
   """
 
   circuit_id = controller.new_circuit(path, await_build = True)
@@ -119,7 +123,7 @@ def scan(controller, path, url, location):
     if str(http_code) == '200':
       print "I M inside if"
       with open('delay_tor_nodes_' + location + '.txt', "a") as the_file:
-	print "I am inside the file descriptor"
+	#print "I am inside the file"
         the_file.write(url + ' ' + str(time.time() - start_time) + ' ' + exit_node + ' ' + location + '\n')
       print "I AM HERE ++++++++++++++++++++++++"
      
@@ -139,21 +143,19 @@ def run_circuit(url, location):
 
 	  i = 0
 	  time_taken = []  
-	  #url = 'https://www.google.com'
-	  top_100_fingerprints = top_100_fingerprints[0:1000]
-	  #fingerprints = [item.pop(1) for item in top_100_fingerprints] #get fingerprints
+	  
+	  top_100_fingerprints = top_100_fingerprints[0:1000] #1000 at the moment
+	  
 	  for fingerprint in top_100_fingerprints:
 	    location2 = fingerprint[1]
-            print "location 1" + location + 'location 2: ' + location2
-            #pdb.set_trace()
-	    fingerp = fingerprint[0] 
+            fingerp = fingerprint[0] 
 	    try:
 	      
 	      if GUARD_FINGERPRINT == fingerp or MIDDLE_FINGERPRINT == fingerp:
 		continue
-	      print [GUARD_FINGERPRINT, MIDDLE_FINGERPRINT, fingerp]
+	      #print [GUARD_FINGERPRINT, MIDDLE_FINGERPRINT, fingerp]
 	      
-	      http_code, time_elapsed = scan(controller, [GUARD_FINGERPRINT, MIDDLE_FINGERPRINT, fingerp], url, location)
+	      http_code, time_elapsed = scan(controller, [GUARD_FINGERPRINT, MIDDLE_FINGERPRINT, fingerp], url, location2) #check whether location or location2
 	      print "HTTP Code" + str(http_code) + "Time Elapsed :" + str(time_e)
 	      
 	      i=i+1
