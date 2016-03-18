@@ -59,8 +59,9 @@ def get_clusters(relay_locations):
 	return clust
 	
 def get_distance(guard_loc, mid_loc, exit_loc):
-	google_ip = socket.gethostbyname('google.com')
+	#google_ip = socket.gethostbyname('google.com')
 	#google_long, google_lat = get_long_lat_ip(google_ip)
+	google_ip = '74.125.68.113'
 	total_dis = great_circle(guard_loc, mid_loc).miles + great_circle(mid_loc, exit_loc).miles + great_circle(exit_loc, get_long_lat_ip(google_ip)).miles
 	return total_dis
 
@@ -137,10 +138,11 @@ def get_closest_middle_exit_nodes(distances, mid_clusters, ex_clusters):
 	min_distance = min(distances)
 	m = min_distance[1]
 	e = min_distance[2]
-	pdb.set_trace()
+	#pdb.set_trace()
 	#print mid_clusters[m], ex_clusters[e]
-	ind_m = random.randint(0,len(mid_clusters))
-	ind_e = random.randint(0, len(ex_clusters))
+	ind_m = random.randint(0,len(mid_clusters[m]))
+	ind_e = random.randint(0, len(ex_clusters[e]))
+	pdb.set_trace()
 	mid_fingerp, ex_fingerp = mid_clusters[m][ind_m][0], ex_clusters[e][ind_e][0]
 	#x = [distances[i] for i in xrange(len(distances))]
 	#min_distance_index = x.index(min(x))
@@ -200,14 +202,15 @@ def scan(controller, path):
 
 
 def run_circuit(distances, mid_clusters, ex_clusters):
+	guard_fp = 'BC924D50078666A0208F9D75F29CA73645FB604D'
 	middle_node_fp, exit_node_fp = get_closest_middle_exit_nodes(distances, mid_clusters, ex_clusters)
-	try:
-		with stem.control.Controller.from_port() as controller:
-			controller.authenticate()
-			http_code, time_elapsed = scan(controller, [guard_fp, middle_node_fp, exit_node_fp])
-			pdb.set_trace() 
-	except Exception as exc:
-		 print('%s => %s' % (fingerprint, exc))
+	
+	with stem.control.Controller.from_port() as controller:
+		controller.authenticate()
+		http_code, time_elapsed = scan(controller, [guard_fp, middle_node_fp, exit_node_fp])
+			#pdb.set_trace() 
+	#except Exception as exc:
+	#	 print('%s => %s' % (fingerprint, exc))
 	return time_elapsed
 	
 def get_paths(middle_node_clusters, exit_node_clusters):
@@ -224,6 +227,8 @@ def main():
 	time = run_circuit(distances, mid_clusters, ex_clusters)
 	#middle_node_locations = get_relay_long_lat('M')
 	#pdb.set_trace()
+	print time
 
 if __name__ == "__main__":
 	main()
+##More stuff to do : Once we get the latency one shortest path, select the 10 shortest paths and select the time for it.
