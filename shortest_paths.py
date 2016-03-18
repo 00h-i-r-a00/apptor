@@ -137,14 +137,16 @@ def measure_path_latencies():
 
 def get_closest_middle_exit_nodes(distances, mid_clusters, ex_clusters):
 	
-	"""Returns the fingerprints of the middle nodes and exit nodes that give the shortest paths to the final destination:google.com"""
+	"""Returns the fingerprints of random mid and exit nodes from the clusters
+	that give the shortest paths to the final destination:google.com"""
+	
 	min_distance = min(distances)
 	m = min_distance[1]
 	e = min_distance[2]
 	
 	ind_m = random.randint(0,len(mid_clusters[m]))
 	ind_e = random.randint(0, len(ex_clusters[e]))
-	pdb.set_trace()
+	#pdb.set_trace()
 	mid_fingerp, ex_fingerp = mid_clusters[m][ind_m][0], ex_clusters[e][ind_e][0]
 	
 	return mid_fingerp, ex_fingerp
@@ -203,24 +205,33 @@ def scan(controller, path):
 
 
 def run_circuit(distances, mid_clusters, ex_clusters):
+	
 	guard_fp = 'BC924D50078666A0208F9D75F29CA73645FB604D'
 	middle_node_fp, exit_node_fp = get_closest_middle_exit_nodes(distances, mid_clusters, ex_clusters)
+	time_ = []
+	try:
+		for i in xrange(100):
+		
+			with stem.control.Controller.from_port() as controller:
+				controller.authenticate()
+				http_code, time_elapsed = scan(controller, [guard_fp, middle_node_fp, exit_node_fp])
+				time_.insert(i, time_elapsed)
+			
+	except Exception as exc:
+		print('Exception: ' , exc)
 	
-	with stem.control.Controller.from_port() as controller:
-		controller.authenticate()
-		http_code, time_elapsed = scan(controller, [guard_fp, middle_node_fp, exit_node_fp])
-			#pdb.set_trace() 
-	#except Exception as exc:
-	#	 print('%s => %s' % (fingerprint, exc))
-	return time_elapsed
+	return time_
 	
 
 def main():
 	
 	distances, mid_clusters, ex_clusters = measure_path_latencies()
 	time = run_circuit(distances, mid_clusters, ex_clusters)
+	pdb.set_trace()
 	
-	print time
+	with open('times', 'wb') as f:
+		pickle.dump(time, f)
+		
 
 if __name__ == "__main__":
 	main()
