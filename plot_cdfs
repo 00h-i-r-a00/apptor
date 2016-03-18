@@ -1,14 +1,5 @@
 from __future__ import division
 import pdb
-
-#import sys
-
-#def hello(variable):
- #   print variable.split()
-
-#data = sys.stdin.read()
-#url_list = data.split()
-#hello(data)
 import sys
 from csv import reader
 from collections import defaultdict
