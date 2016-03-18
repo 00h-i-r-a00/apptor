@@ -216,15 +216,12 @@ def run_circuit(distances, mid_clusters, ex_clusters):
 	
 
 def main():
-	#relay_loc = get_relay_long_lat()
-	#get_clusters(relay_loc)
+	
 	distances, mid_clusters, ex_clusters = measure_path_latencies()
-	#get_closest_middle_exit_nodes(distances, mid_clusters, ex_clusters)
 	time = run_circuit(distances, mid_clusters, ex_clusters)
-	#middle_node_locations = get_relay_long_lat('M')
-	#pdb.set_trace()
+	
 	print time
 
 if __name__ == "__main__":
 	main()
-##More stuff to do : Once we get the latency one shortest path, select the 10 shortest paths and select the time for it.
+
