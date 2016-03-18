@@ -16,7 +16,7 @@ import random
 import socket
 import pickle
 
-rawdata = pygeoip.GeoIP('/home/hira/GeoLiteCity.dat')
+rawdata = pygeoip.GeoIP('GeoLiteCity.dat')
 SOCKS_PORT = 9050
 CONNECTION_TIMEOUT = 30
 
