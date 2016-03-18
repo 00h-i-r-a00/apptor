@@ -14,6 +14,7 @@ from sklearn.cluster import DBSCAN
 from geopy.distance import great_circle
 import random
 import socket
+import pickle
 
 rawdata = pygeoip.GeoIP('/home/hira/GeoLiteCity.dat')
 SOCKS_PORT = 9050
@@ -227,7 +228,7 @@ def main():
 	
 	distances, mid_clusters, ex_clusters = measure_path_latencies()
 	time = run_circuit(distances, mid_clusters, ex_clusters)
-	pdb.set_trace()
+	#pdb.set_trace()
 	
 	with open('times', 'wb') as f:
 		pickle.dump(time, f)
