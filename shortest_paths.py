@@ -17,7 +17,7 @@ import socket
 import pickle
 from numpy.random import choice
 
-rawdata = pygeoip.GeoIP('GeoLiteCity.dat')
+rawdata = pygeoip.GeoIP('/home/hira/GeoLiteCity.dat')
 SOCKS_PORT = 9050
 CONNECTION_TIMEOUT = 300
 
@@ -141,14 +141,14 @@ def measure_path_latencies():
 	return distances, middle_relay_clusters, exit_relay_clusters
 
 def choose_path_via_prob(distances):
-	pdb.set_trace()
+	#pdb.set_trace()
 	indices = [i for i in xrange(len(distances))]
 	max_distance = max(distances)
 	max_distance = max_distance[0]
 	weights = [(max_distance - distances[i][0]) for i in xrange(len(distances))]
 	sum_weights = sum(weights)
 	probabilities = [weights[i]/sum_weights for i in xrange(len(distances))]
-	pdb.set_trace()
+	#pdb.set_trace()
 	index_chosen = choice(indices, 1, probabilities)
 	return index_chosen[0]
 	
