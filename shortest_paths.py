@@ -15,6 +15,7 @@ from geopy.distance import great_circle
 import random
 import socket
 import pickle
+from numpy.random import choice
 
 rawdata = pygeoip.GeoIP('GeoLiteCity.dat')
 SOCKS_PORT = 9050
@@ -139,15 +140,29 @@ def measure_path_latencies():
 	
 	return distances, middle_relay_clusters, exit_relay_clusters
 
+def choose_path_via_prob(distances):
+	pdb.set_trace()
+	indices = [i for i in xrange(len(distances))]
+	max_distance = max(distances)
+	max_distance = max_distance[0]
+	weights = [(max_distance - distances[i][0]) for i in xrange(len(distances))]
+	sum_weights = sum(weights)
+	probabilities = [weights[i]/sum_weights for i in xrange(len(distances))]
+	pdb.set_trace()
+	index_chosen = choice(indices, 1, probabilities)
+	return index_chosen[0]
+	
 def get_closest_middle_exit_nodes(distances, mid_clusters, ex_clusters):
 	
 	"""Returns the fingerprints of random mid and exit nodes from the clusters
 	that give the shortest paths to the final destination:google.com"""
 	
-	min_distance = min(distances)
-	m = min_distance[1]
-	e = min_distance[2]
+	index = choose_path_via_prob(distances)
 	
+	m = distances[index][1]
+	e = distances[index][2]
+	pdb.set_trace()
+	####random selection of relays from the chosen cluster
 	ind_m = random.randint(0,len(mid_clusters[m]) - 1)
 	ind_e = random.randint(0, len(ex_clusters[e]) - 1)
 	pdb.set_trace()
