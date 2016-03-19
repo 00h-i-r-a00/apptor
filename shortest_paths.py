@@ -16,19 +16,19 @@ import random
 import socket
 import pickle
 
-rawdata = pygeoip.GeoIP('GeoLiteCity.dat')
+rawdata = pygeoip.GeoIP('/home/hira/GeoLiteCity.dat')
 SOCKS_PORT = 9050
-CONNECTION_TIMEOUT = 30
+CONNECTION_TIMEOUT = 300
 
 def getCentroid(points):
-    """Returns the centroid of a set of points in a cluster"""
-    n = len(points)
-    
-    sum_lon = sum([i[1] for i in points])
-    sum_lat = sum([i[2] for i in points])
-    
-    return [sum_lon/n, sum_lat/n]
-    
+	"""Returns the centroid of a set of points in a cluster"""
+	n = len(points)
+	
+	sum_lon = sum([i[1] for i in points])
+	sum_lat = sum([i[2] for i in points])
+	
+	return [sum_lon/n, sum_lat/n]
+	
 def get_long_lat_ip(ip):
 	"""Returns Latitude, Longitude given an IP"""
 	data = rawdata.record_by_name(ip)
@@ -40,19 +40,22 @@ def get_long_lat_ip(ip):
 
 def get_clusters(relay_locations):
 	
-	"""Returns a set of clusters for the nodes in the relay_locations"""
-	
+	"""Returns a set of clusters for the nodes in the relay_locations list"""
+	##relay locations = long, lat
 	df = pd.DataFrame(relay_locations)
+	#pdb.set_trace()
 	df = pd.DataFrame.transpose(df) ## returns fingerprints as keys, and lat, longs as columns
 	coordinates = df.as_matrix(columns=[1, 2]) #latitudes, longitudes as a matrix
+	#pdb.set_trace()
 	db = DBSCAN(eps=2, min_samples=1).fit(coordinates)
 	labels = db.labels_
 	num_clusters = len(set(labels)) - (1 if -1 in labels else 0)
 	clusters = pd.Series([coordinates[labels == i] for i in xrange(num_clusters)])
 	points = list(coordinates)
 	lab = list(db.labels_)
-	points_clusters = [[relay_locations[i][0], points[i][0], points[i][1], lab[i]] for i in xrange(len(points))]
-	
+	points_clusters = [[relay_locations[i][0], points[i][0], points[i][1], lab[i]] for i in xrange(len(points))] #relay_loc, long,lat
+	#pdb.set_trace()
+	###points clusters is an array of the form: points_clusters[0] contains fingerprint,  
 	no_points = len(points_clusters)
 	clust = [0] * len(set(labels))
 	
@@ -77,8 +80,8 @@ def get_relay_long_lat(relay_type):
   relay_locations = {}
 
   downloader = DescriptorDownloader(
-    use_mirrors = True,
-    timeout = 10,
+	use_mirrors = True,
+	timeout = 10,
   )
   query = downloader.get_consensus()
   
@@ -109,22 +112,22 @@ def measure_path_latencies():
 	Guard_Node_ip = '50.116.4.107'
 	gu_long, gu_lat = get_long_lat_ip(Guard_Node_ip)
 	
-	middle_node_locations = get_relay_long_lat('M')
+	middle_node_locations = get_relay_long_lat('M') ## each location = [fingerprint, longitude, latitude]
 	exit_node_locations = get_relay_long_lat('E')
 	
-	middle_relay_clusters = get_clusters(middle_node_locations)
+	middle_relay_clusters = get_clusters(middle_node_locations)# clust[0] contains a nested list containing all nodes with label = 0
 	exit_relay_clusters = get_clusters(exit_node_locations)
-    
+	
 	middle_centroids = [getCentroid(middle_relay_clusters[i]) for i in xrange(len(middle_relay_clusters))] # [[0, long, lat],[1, long, lat],[2, long, lat]]
 	exit_centroids = [getCentroid(exit_relay_clusters[i]) for i in xrange(len(exit_relay_clusters))]
-    
+	
 	distances = [0]*len(middle_centroids)*len(exit_centroids)
 	l=0
 	for i in xrange(len(middle_centroids)):
 		for j in xrange(len(exit_centroids)):
 		
 			
-			mi_lat = middle_centroids[i][1]
+			mi_lat = middle_centroids[i][1] #switch long,lat => lat,long
 			mi_long = middle_centroids[i][0]
 				
 			ex_lat = exit_centroids[j][1]
@@ -145,9 +148,9 @@ def get_closest_middle_exit_nodes(distances, mid_clusters, ex_clusters):
 	m = min_distance[1]
 	e = min_distance[2]
 	
-	ind_m = random.randint(0,len(mid_clusters[m]))
-	ind_e = random.randint(0, len(ex_clusters[e]))
-	#pdb.set_trace()
+	ind_m = random.randint(0,len(mid_clusters[m]) - 1)
+	ind_e = random.randint(0, len(ex_clusters[e]) - 1)
+	pdb.set_trace()
 	mid_fingerp, ex_fingerp = mid_clusters[m][ind_m][0], ex_clusters[e][ind_e][0]
 	
 	return mid_fingerp, ex_fingerp
@@ -192,11 +195,11 @@ def scan(controller, path):
 	try:
 		controller.set_conf('__LeaveStreamsUnattached', '1')  # leave stream management to us
 		start_time = time.time()
-    #pdb.set_trace()
-    
+	#pdb.set_trace()
+	
 		http_code = query(url)
 		exit_node = path[2]
-    #pdb.set_trace()
+	#pdb.set_trace()
 		if str(http_code) == '200':
 			return http_code, time.time() - start_time
 
@@ -209,17 +212,16 @@ def run_circuit(distances, mid_clusters, ex_clusters):
 	
 	guard_fp = 'BC924D50078666A0208F9D75F29CA73645FB604D'
 	middle_node_fp, exit_node_fp = get_closest_middle_exit_nodes(distances, mid_clusters, ex_clusters)
-	time_ = []
-	try:
-		for i in xrange(100):
-		
+	time_ = 100*[0]
+	for i in xrange(100):
+		try:	
 			with stem.control.Controller.from_port() as controller:
 				controller.authenticate()
 				http_code, time_elapsed = scan(controller, [guard_fp, middle_node_fp, exit_node_fp])
 				time_.insert(i, time_elapsed)
 			
-	except Exception as exc:
-		print('Exception: ' , exc)
+		except Exception as exc:
+			print('Exception: ' , exc)
 	
 	return time_
 	
@@ -230,7 +232,7 @@ def main():
 	time = run_circuit(distances, mid_clusters, ex_clusters)
 	#pdb.set_trace()
 	
-	with open('times', 'wb') as f:
+	with open('times.pickle', 'wb') as f:
 		pickle.dump(time, f)
 		
 
