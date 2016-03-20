@@ -17,7 +17,7 @@ import pickle
 from numpy.random import choice
 from datetime import datetime, timedelta
 
-rawdata = pygeoip.GeoIP('/home/hira/GeoLiteCity.dat')
+rawdata = pygeoip.GeoIP('GeoLiteCity.dat')
 SOCKS_PORT = 9050
 CONNECTION_TIMEOUT = 300
 
