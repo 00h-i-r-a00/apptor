@@ -9,7 +9,6 @@ from stem.descriptor.remote import DescriptorDownloader
 import pandas as pd
 import pandas as pd
 import numpy as np 
-#import matplotlib.pyplot as plt
 from sklearn.cluster import DBSCAN
 from geopy.distance import great_circle
 import random
@@ -33,9 +32,18 @@ def getCentroid(points):
 	
 def get_long_lat_ip(ip):
 	"""Returns Latitude, Longitude given an IP"""
+	
+	with open('ips2.txt', 'a') as f:
+		f.write(ip + '\n')
+	
 	data = rawdata.record_by_name(ip)
-	longi = data['longitude']
-	lat = data['latitude']
+	##some routers have somehow turned their location off; unable to pinpoint their exact location or stats
+	if data == None:
+		longi = 'None'
+		lat = 'None'
+	else:
+		longi = data['longitude']	
+		lat = data['latitude']
 	
 	return longi, lat
 	
@@ -70,8 +78,8 @@ def get_clusters(relay_locations):
 def get_distance(guard_loc, mid_loc, exit_loc):
 	"""Get distance of the path"""
 	
-	google_ip = '74.125.68.113'
-	total_dis = great_circle(guard_loc, mid_loc).miles + great_circle(mid_loc, exit_loc).miles + great_circle(exit_loc, get_long_lat_ip(google_ip)).miles
+	fb_ip = '31.13.90.36'
+	total_dis = great_circle(guard_loc, mid_loc).miles + great_circle(mid_loc, exit_loc).miles + great_circle(exit_loc, get_long_lat_ip(fb_ip)).miles
 	return total_dis
 
 def get_relay_long_lat(relay_type):
@@ -95,16 +103,22 @@ def get_relay_long_lat(relay_type):
 	  for desc in query.run():
 		  if desc.exit_policy.is_exiting_allowed() == True:
 			  longi, lat = get_long_lat_ip(desc.address)
-			  relay_locations[i] = [desc.fingerprint, longi, lat]
-			  i+=1
+			  if longi == 'None' and lat == 'None':
+				  continue
+			  else:
+				  relay_locations[i] = [desc.fingerprint, longi, lat]
+				  i+=1
 			  
   elif relay_type == 'M':
 	  
 	  for desc in query.run():
 		  if 'Guard' in desc._entries[u's'][0][0] and desc.exit_policy.is_exiting_allowed() != True:
 			  longi, lat = get_long_lat_ip(desc.address)
-			  relay_locations[i] = [desc.fingerprint, longi, lat]
-			  i+=1
+			  if longi == 'None' and lat == 'None':
+				  continue
+			  else:
+				  relay_locations[i] = [desc.fingerprint, longi, lat]
+				  i+=1
  
   return relay_locations
 
@@ -175,7 +189,7 @@ def get_multiple_shortest_paths(indices, distances, mid_clusters, ex_clusters):
 	return path_fingerprints
 
 def get_bandwidth(fingerprint):
-	##todo##
+	##Optimization todo##
 	###store all fingerprints and their bandwidths inside a pickle file
 	##also store time last uploaded
 	###if time >=24h or fingerprint not found
@@ -184,17 +198,7 @@ def get_bandwidth(fingerprint):
 	##just load from a pickle file
 	####
 	#################33
-	###if pickle file ex
-	#~ fingerprint_bandwidth['timestamp'] = datetime.now
-	#~ fingerprint_bandwidths = {}
-	#~ downloader = DescriptorDownloader(
-		#~ use_mirrors = True,
-		#~ timeout = 10,
-	  #~ )
-	#~ 
-	#~ query = downloader.get_consensus()
-	#~ for desc in query.run():
-		#~ fingerprint_bandwidth[desc.fingerprint] = desc.bandwidth
+	
 	####################333
 	downloader = DescriptorDownloader(
 		use_mirrors = True,
@@ -220,12 +224,24 @@ def get_highest_bandwidth_path(paths_fingerprints):
 	"""
 	Given 10 middle_node, exit_node combinations choose the one with highest limiting_bandwidth
 	"""
+	
 	limiting_bandwidth = [0]*len(paths_fingerprints) ### limiting bandwidth of each circuit
 	
 	for i in xrange(len(paths_fingerprints)):
 		limiting_bandwidth[i] = get_limiting_bandwidth(paths_fingerprints[i][0], paths_fingerprints[i][1])
+	#~ 
+	#~ index = limiting_bandwidth.index(max(limiting_bandwidth))
+	#extra code
+	###store limiting bandwidths and multiple paths in a file to plot later#####
+	fp_bandwidths = {}
+	fp_bandwidths = {i:[limiting_bandwidth[i], paths_fingerprints[i][0], paths_fingerprints[i][1]] for i in xrange(len(paths_fingerprints))}
+	
+	with open('bandwidth.pickle', 'wb') as f:
+		pickle.dump(fp_bandwidths, f)
 	
 	index = limiting_bandwidth.index(max(limiting_bandwidth))
+	#~ #extra code
+	############
 	pdb.set_trace()
 	####
 	##store limiting bandwidths and paths_fingerprints in a pickle file
@@ -280,7 +296,7 @@ def scan(controller, path):
 	Create a circuit as specified by the "path"
 	Using the circuit created, fetch a url and get its delay i.e the delay between the HTTP Request and the HTTP Response
 	"""
-	url = 'google.com'
+	url = 'facebook.com'
 	circuit_id = controller.new_circuit(path, await_build = True)
 
 	def attach_stream(stream):
