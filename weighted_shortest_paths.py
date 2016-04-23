@@ -78,8 +78,9 @@ def get_clusters(relay_locations):
 def get_distance(guard_loc, mid_loc, exit_loc):
 	"""Get distance of the path"""
 	
-	fb_ip = '31.13.90.36'
-	total_dis = great_circle(guard_loc, mid_loc).miles + great_circle(mid_loc, exit_loc).miles + great_circle(exit_loc, get_long_lat_ip(fb_ip)).miles
+	#fb_ip = '31.13.90.36'
+	bing_ip = '204.79.197.200'
+	total_dis = great_circle(guard_loc, mid_loc).miles + great_circle(mid_loc, exit_loc).miles + great_circle(exit_loc, get_long_lat_ip(bing_ip)).miles
 	return total_dis
 
 def get_relay_long_lat(relay_type):
@@ -133,7 +134,7 @@ def measure_path_latencies():
 	
 	middle_relay_clusters = get_clusters(middle_node_locations)# clust[0] contains a nested list containing all nodes with label = 0
 	exit_relay_clusters = get_clusters(exit_node_locations)
-	
+	#middle relay clusters contains all the middle node clusters , clustered by location
 	middle_centroids = [getCentroid(middle_relay_clusters[i]) for i in xrange(len(middle_relay_clusters))] # [[0, long, lat],[1, long, lat],[2, long, lat]]
 	exit_centroids = [getCentroid(exit_relay_clusters[i]) for i in xrange(len(exit_relay_clusters))]
 	
@@ -150,9 +151,9 @@ def measure_path_latencies():
 			ex_long = exit_centroids[j][0]
 			
 			
-			distances[l] = [get_distance((gu_lat, gu_long), (mi_lat, mi_long), (mi_lat, mi_long)), i, j]
+			distances[l] = [get_distance((gu_lat, gu_long), (mi_lat, mi_long), (ex_lat, ex_long)), i, j]
 			l+=1
-	
+			##distances: distance between guard node, cluster centroid, exit node, exit server for each cluster centroid
 	return distances, middle_relay_clusters, exit_relay_clusters
 
 def choose_path_via_prob(distances):
@@ -236,7 +237,7 @@ def get_highest_bandwidth_path(paths_fingerprints):
 	fp_bandwidths = {}
 	fp_bandwidths = {i:[limiting_bandwidth[i], paths_fingerprints[i][0], paths_fingerprints[i][1]] for i in xrange(len(paths_fingerprints))}
 	
-	with open('bandwidth.pickle', 'wb') as f:
+	with open('bandwidth_2.pickle', 'wb') as f:
 		pickle.dump(fp_bandwidths, f)
 	
 	index = limiting_bandwidth.index(max(limiting_bandwidth))
@@ -254,11 +255,11 @@ def get_highest_bandwidth_path(paths_fingerprints):
 def get_closest_middle_exit_nodes(distances, mid_clusters, ex_clusters):
 	
 	"""Returns the fingerprints of random mid and exit nodes from the clusters
-	that give the shortest paths to the final destination:google.com"""
+	that give the shortest paths to the final destination:facebook.com"""
 	
 	indices = [choose_path_via_prob(distances) for i in xrange(10)] #indices of 10 probalistically chosen paths
 	pdb.set_trace() ##test 1: see whether indices being returned are alright
-	print("Inisde the first")
+	print("Inside the first")
 	paths_fingerprints = get_multiple_shortest_paths(indices, distances, mid_clusters, ex_clusters) ##[[mp1, ep1],[mp2, ep2]]
 	#pdb.set_trace()
 	#test2: what are the paths_fingerprints
