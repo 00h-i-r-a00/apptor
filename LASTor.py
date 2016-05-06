@@ -17,7 +17,7 @@ import pickle
 from numpy.random import choice
 from datetime import datetime, timedelta
 
-rawdata = pygeoip.GeoIP('GeoLiteCity.dat')
+rawdata = pygeoip.GeoIP('/home/hira/tor-project/GeoLiteCity.dat')
 SOCKS_PORT = 9050
 CONNECTION_TIMEOUT = 300
 
@@ -46,8 +46,19 @@ def get_long_lat_ip(ip):
 		lat = data['latitude']
 	
 	return longi, lat
-	
 
+
+def find_cluster_size(clust):
+	 centroids = [getCentroid(clust[i]) for i in xrange(len(clust))]
+	 
+	 #cluster_sizes = [clust[i] for i in xrange(len(clust))]
+	 cluster_sizes = [[0, 0] for j in xrange(len(clust))]
+	 pdb.set_trace()
+	 for i in xrange(len(clust)):
+		 
+		 vertical = max(clust[i], key=lambda x: x[1]) - min(clust[i], key=lambda x: x[1])[1]
+		 horizontal = max(clust[i], key=lambda x: x[2]) - min(clust[i], key=lambda x: x[2])[2]
+		 cluster_sizes[i] = [vertical, horizontal]
 def get_clusters(relay_locations):
 	
 	"""Returns a set of clusters for the nodes in the relay_locations list"""
@@ -72,7 +83,8 @@ def get_clusters(relay_locations):
 	for i in xrange(len(set(labels))):
 		clust[i] = [points_clusters[x] for x in xrange(no_points) if points_clusters[x][3] == i]
 			
-	
+	pdb.set_trace()
+	find_cluster_size(clust)
 	return clust
 	
 def get_distance(guard_loc, mid_loc, exit_loc):
@@ -80,6 +92,8 @@ def get_distance(guard_loc, mid_loc, exit_loc):
 	
 	#fb_ip = '31.13.90.36'
 	bing_ip = '204.79.197.200'
+	#yout_ip = '74.125.200.136'
+	#goog_ip = '216.58.210.238'
 	total_dis = great_circle(guard_loc, mid_loc).miles + great_circle(mid_loc, exit_loc).miles + great_circle(exit_loc, get_long_lat_ip(bing_ip)).miles
 	return total_dis
 
@@ -157,15 +171,16 @@ def measure_path_latencies():
 	return distances, middle_relay_clusters, exit_relay_clusters
 
 def choose_path_via_prob(distances):
-	#pdb.set_trace()
+	
 	indices = [i for i in xrange(len(distances))]
 	max_distance = max(distances)
 	max_distance = max_distance[0]
 	weights = [(max_distance - distances[i][0]) for i in xrange(len(distances))]
 	sum_weights = sum(weights)
 	probabilities = [weights[i]/sum_weights for i in xrange(len(distances))]
-	#pdb.set_trace()
+	
 	index_chosen = choice(indices, 1, probabilities)
+	
 	return index_chosen[0]
 
 def get_multiple_shortest_paths(indices, distances, mid_clusters, ex_clusters):
@@ -212,61 +227,16 @@ def get_bandwidth(fingerprint):
 		if desc.fingerprint == fingerprint:
 			return desc.bandwidth
 			break
-			
-def get_limiting_bandwidth(mid_fp, exit_fp):
-	
-	mid_band = get_bandwidth(mid_fp)
-	exit_band = get_bandwidth(mid_fp)
-	min_bandwidth = min(mid_band, exit_band)
-	return min_bandwidth
-	
-		
-def get_highest_bandwidth_path(paths_fingerprints):
-	"""
-	Given 10 middle_node, exit_node combinations choose the one with highest limiting_bandwidth
-	"""
-	
-	limiting_bandwidth = [0]*len(paths_fingerprints) ### limiting bandwidth of each circuit
-	
-	for i in xrange(len(paths_fingerprints)):
-		limiting_bandwidth[i] = get_limiting_bandwidth(paths_fingerprints[i][0], paths_fingerprints[i][1])
-	#~ 
-	#~ index = limiting_bandwidth.index(max(limiting_bandwidth))
-	#extra code
-	###store limiting bandwidths and multiple paths in a file to plot later#####
-	fp_bandwidths = {}
-	fp_bandwidths = {i:[limiting_bandwidth[i], paths_fingerprints[i][0], paths_fingerprints[i][1]] for i in xrange(len(paths_fingerprints))}
-	
-	with open('bandwidth_2.pickle', 'wb') as f:
-		pickle.dump(fp_bandwidths, f)
-	
-	index = limiting_bandwidth.index(max(limiting_bandwidth))
-	#~ #extra code
-	############
-	pdb.set_trace()
-	####
-	##store limiting bandwidths and paths_fingerprints in a pickle file
-	##run circuits for each of them 
-	##plot
-	####	
-	###send over the one with highest limiting_bandwidth	
-	return paths_fingerprints[index][0], paths_fingerprints[index][1]
-		
+				
 def get_closest_middle_exit_nodes(distances, mid_clusters, ex_clusters):
 	
 	"""Returns the fingerprints of random mid and exit nodes from the clusters
-	that give the shortest paths to the final destination:facebook.com"""
+	that give the shortest paths to the final destination"""
 	
 	indices = [choose_path_via_prob(distances) for i in xrange(10)] #indices of 10 probalistically chosen paths
-	pdb.set_trace() ##test 1: see whether indices being returned are alright
-	print("Inside the first")
 	paths_fingerprints = get_multiple_shortest_paths(indices, distances, mid_clusters, ex_clusters) ##[[mp1, ep1],[mp2, ep2]]
-	#pdb.set_trace()
-	#test2: what are the paths_fingerprints
-	mid_fingerp, ex_fingerp = get_highest_bandwidth_path(paths_fingerprints)
-	pdb.set_trace()
-	###something useful would be to print get limiting_bandwidth for each; then plot cdfs for the time
-	##each of these combinations offer
+	mid_fingerp, ex_fingerp = paths_fingerprints[0][0], paths_fingerprints[0][1]
+	
 	return mid_fingerp, ex_fingerp
 	
 def query(url):
@@ -287,17 +257,16 @@ def query(url):
 	query.setopt(pycurl.FOLLOWLOCATION, 1)  
 	query.perform()
 
-  #time_elapsed = query.getinfo(query.TOTAL_TIME)
 	http_code = query.getinfo(query.HTTP_CODE)
-  
-	return http_code
+	time_ = query.getinfo(query.TOTAL_TIME)
+	return http_code, time_
 
 def scan(controller, path):
 	"""
 	Create a circuit as specified by the "path"
 	Using the circuit created, fetch a url and get its delay i.e the delay between the HTTP Request and the HTTP Response
 	"""
-	url = 'facebook.com'
+	url = 'https://bing.com'
 	circuit_id = controller.new_circuit(path, await_build = True)
 
 	def attach_stream(stream):
@@ -311,11 +280,11 @@ def scan(controller, path):
 		start_time = time.time()
 	#pdb.set_trace()
 	
-		http_code = query(url)
-		exit_node = path[2]
+		http_code, time1 = query(url)
+		# exit_node = path[2]
 	#pdb.set_trace()
 		if str(http_code) == '200':
-			return http_code, time.time() - start_time
+			return http_code, time1
 
 	finally:
 		controller.remove_event_listener(attach_stream)
@@ -323,7 +292,7 @@ def scan(controller, path):
 
 
 def run_circuit(guard_fp, middle_node_fp, exit_node_fp):
-	pdb.set_trace()
+	#pdb.set_trace()
 	time_ = 100*[0]
 	
 	for i in xrange(100):
@@ -340,16 +309,21 @@ def run_circuit(guard_fp, middle_node_fp, exit_node_fp):
 	
 
 def main():
+	"""
 	
+	"""
+	st = time.time()
 	distances, mid_clusters, ex_clusters = measure_path_latencies()
-	
-	guard_fp = 'BC924D50078666A0208F9D75F29CA73645FB604D'
 	middle_node_fp, exit_node_fp = get_closest_middle_exit_nodes(distances, mid_clusters, ex_clusters)
-	pdb.set_trace()
-	time = run_circuit(guard_fp, middle_node_fp, exit_node_fp)
-	pdb.set_trace()
+	e = time.time()
 	
-	with open('times.pickle', 'wb') as f:
+	print "Time to cluster: ", e - st
+	pdb.set_trace()
+	guard_fp = 'BC924D50078666A0208F9D75F29CA73645FB604D'
+	time = run_circuit(guard_fp, middle_node_fp, exit_node_fp)
+	#pdb.set_trace()
+	
+	with open('times_bing_LASTOR.pickle', 'wb') as f:
 		pickle.dump(time, f)
 		
 
